@@ -7,7 +7,7 @@
 #define ll long long
 #define POP 100
 #define WEIGHT 60
-#define FEA 20
+#define FEA 24
 #define TERMINATION 85
 #define TOURNAMENT 20 
 #define CROSSRATIO 10
@@ -15,6 +15,7 @@
 #define STEADY 1
 #define GEN 0
 #define MUTRATIO 10
+#define ALPHA 0.5
 using namespace std;
 
 
@@ -241,16 +242,27 @@ int plotterBest(vector<chromosomes> &c){
 	listPop[19].v = 300; 
 }*/
 
+//////-changes- chromosome[random+noc-1] // yahan -1 nhi aana chahiye
+//////-changes :- rand()%(FEA-noc) -> done
+//////-changes- compulsory skills all one ->done
 // make intial population
-void make_population(vector<chromosomes> &c){  
+void make_population(vector<chromosomes> &c, int noc){  
 	for(int i = 0; i < POP; ++i){
-		int w =  0,v=0;
+		int w = 0,v=0;
+
+		for(int j = 0; j < noc; ++j){
+			w += listPop[j].w;
+			v += listPop[j].v;
+
+			c[i].chromosome[j] = 1;
+		}
+
 		while(w<=WEIGHT){
-			int random = rand()%FEA;
-			if(c[i].chromosome[random]==0){
-				w+= listPop[random].w;
-				c[i].chromosome[random]=1;
-				v+=listPop[random].v;
+			int random = rand()%(FEA-noc);
+			if(c[i].chromosome[random + noc]==0){
+				w+= listPop[random + noc].w;
+				c[i].chromosome[random + noc]=1;
+				v+=listPop[random + noc].v;
 			}
 		}
 		c[i].weight = w;
@@ -258,13 +270,25 @@ void make_population(vector<chromosomes> &c){
 	}
 }
 
+//////-changes j: index of unknown skill -> done
+//////-changes w: weight of comp skill argument -> done by calculation
+//////-changes j<total-equipped -> done
+//////-changes k = total - equipped : total ->done
+//////-changes- incoroprate alpha -> done
  // helper function to calculate fitness
-void fitnessFunction(vector<chromosomes> &c){
+void fitnessFunction(vector<chromosomes> &c, int noc, int noe){
 	int ctr=0;
 	for(int i = 0; i < POP; ++i){
-		int v = 0, w =0,j =0, in = 0;
-		while(j<FEA){
-			for(; j < FEA && w<=WEIGHT; ++j){
+		int v = 0, w =0, j = noc, in = 0;
+
+		for(int x = 0; x < noc; ++x){
+			v += listPop[x].v;
+			w += listPop[x].w;
+		}
+
+		//loop for un-equipped skills
+		while( j < (FEA - noe) ){
+			for(; j < (FEA - noe) && w<=WEIGHT; ++j){
 				if(c[i].chromosome[j]){
 					v+=listPop[j].v;
 					w+=listPop[j].w;
@@ -278,11 +302,30 @@ void fitnessFunction(vector<chromosomes> &c){
 				c[i].chromosome[in]=0;
 			}
 		}
+
+		//loop for equipped skills and revision
+		int k = FEA - noe;
+		while( k < (FEA) ){
+			for(; k < (FEA) && w<=WEIGHT; ++k){
+				if(c[i].chromosome[k]){
+					v+=listPop[k].v;
+					w+= ALPHA * listPop[k].w;
+					in = k;
+				}
+			}
+
+			if(w>WEIGHT){
+				v-=listPop[in].v;
+				w-= ALPHA * listPop[in].w;
+				c[i].chromosome[in]=0;
+			}
+		}
+
 		c[i].fitness = v;
 		c[i].weight = w;
 	}
 }
-
+///// leave
 // selection operator - roulette
 pair<chromosomes,chromosomes> selectionRoulette(vector<chromosomes> &c){ 
 	// create roulette
@@ -296,8 +339,7 @@ pair<chromosomes,chromosomes> selectionRoulette(vector<chromosomes> &c){
 	r.display();
 	return r.parents();
 }
-
-
+//////-no changes
 // selection operator - tournament
 pair<chromosomes,chromosomes> selectionTournament(vector<chromosomes> &c){ 
 	int k = TOURNAMENT, random;
@@ -313,12 +355,14 @@ pair<chromosomes,chromosomes> selectionTournament(vector<chromosomes> &c){
 	return p;
 }
 
-
+//////-changes :- random x : 23, x=noc ->done
+//////-changes index of loop from noc ->done
+//////-changes only change first for loop ->okay
 // crossover operator - one point
-pair<chromosomes,chromosomes> crossoverOnePoint(pair<chromosomes,chromosomes> &p, int &gen){ 
+pair<chromosomes,chromosomes> crossoverOnePoint(pair<chromosomes,chromosomes> &p, int &gen, int noc){ 
 	pair<chromosomes,chromosomes> children;
-	int random = rand()%FEA;
-	for(int i = 0; i < FEA; ++i){
+	int random = rand()%(FEA-noc) + noc;
+	for(int i = noc; i < FEA; ++i){
 		if(i>=random){
 			children.first.chromosome[i]=p.second.chromosome[i];
 			children.second.chromosome[i]=p.first.chromosome[i];
@@ -357,17 +401,20 @@ pair<chromosomes,chromosomes> crossoverOnePoint(pair<chromosomes,chromosomes> &p
 	return children;
 }
 
+//////-changes :- two times random x : 23, x=noc ->done
+//////-changes index of loop from noc ->done
+//////-changes only change first for loop ->okay
 // crossover operator - two point
-pair<chromosomes,chromosomes> crossoverTwoPoint(pair<chromosomes,chromosomes> &p, int &gen){ 
+pair<chromosomes,chromosomes> crossoverTwoPoint(pair<chromosomes,chromosomes> &p, int &gen, int noc){ 
 	pair<chromosomes,chromosomes> children;
-	int random1 = rand()%FEA;
-	int random2 = rand()%FEA;
+	int random1 = rand()%(FEA - noc) + noc;
+	int random2 = rand()%(FEA - noc) + noc;
 	if(random1>random2){
 		int t = random1;
 		random1 =random2;
 		random2 = t;
 	}
-	for(int i = 0; i < FEA; ++i){
+	for(int i = noc; i < FEA; ++i){
 		if(i>=random1 && i<random2){
 			children.first.chromosome[i]=p.second.chromosome[i];
 			children.second.chromosome[i]=p.first.chromosome[i];
@@ -406,10 +453,12 @@ pair<chromosomes,chromosomes> crossoverTwoPoint(pair<chromosomes,chromosomes> &p
 	return children;
 }
 
+//////-changes index of loop from noc ->done
+//////-changes only change first for loop ->okay
 // crossover operator - uniform
-pair<chromosomes,chromosomes> crossoverUniform(pair<chromosomes,chromosomes> &p, int &gen){ 
+pair<chromosomes,chromosomes> crossoverUniform(pair<chromosomes,chromosomes> &p, int &gen, int noc){ 
 	pair<chromosomes,chromosomes> children;
-	for(int i = 0; i < FEA; ++i){
+	for(int i = noc; i < FEA; ++i){
 		if(coinToss()){
 			children.first.chromosome[i]=p.second.chromosome[i];
 			children.second.chromosome[i]=p.first.chromosome[i];
@@ -449,11 +498,12 @@ pair<chromosomes,chromosomes> crossoverUniform(pair<chromosomes,chromosomes> &p,
 	return children;
 }
 
+//////-changes :- random x : 23, x=noc, line 472 -> done
 // mutation operator - single bit
-void mutateSingleBit(pair<chromosomes,chromosomes> &p){ 
+void mutateSingleBit(pair<chromosomes,chromosomes> &p, int noc){ 
 	int random = rand() % 1000 + 1;
 	if(random<=MUTRATIO*10){
-		random = random%FEA; 
+		random = random%(FEA - noc) + noc; 
 		p.first.chromosome[random]^=1;
 		if(p.first.chromosome[random]==1){
 			if((p.first.weight+listPop[random].w)>WEIGHT)
@@ -481,8 +531,9 @@ void mutateSingleBit(pair<chromosomes,chromosomes> &p){
 	}
 }
 
+//////-changes :- add arguement of noc, noe
 // wrapper function for three steps - selecting parent, cross-over, mutation
-vector<chromosomes> scmWrapper(vector<chromosomes> &c, int &gen){
+vector<chromosomes> scmWrapper(vector<chromosomes> &c, int &gen, int noc, int noe){
 	
 	vector<chromosomes> children;
 
@@ -494,10 +545,10 @@ vector<chromosomes> scmWrapper(vector<chromosomes> &c, int &gen){
 		pair<chromosomes,chromosomes> parent = selectionRoulette(c);
 		
 		//crossover() 
-		pair<chromosomes,chromosomes> child = crossoverTwoPoint(parent,gen);
+		pair<chromosomes,chromosomes> child = crossoverTwoPoint(parent,gen, noc);
 		
 		//mutate()
-		mutateSingleBit(child);
+		mutateSingleBit(child, noc);
 		if(child.first.fitness>0)
 			children.push_back(child.first);
 		if(child.second.fitness>0)
@@ -506,37 +557,40 @@ vector<chromosomes> scmWrapper(vector<chromosomes> &c, int &gen){
 	return children;
 }
 
+////// ignore
 // survivor selection - age
-void survivorSelectionAge(vector<chromosomes> &c, vector<chromosomes> &p){ 
+void survivorSelectionAge(vector<chromosomes> &c, vector<chromosomes> &children){ 
 
-	// sort parent array according to fitness
+	// sort current/parent array according to fitness
 	sort(c.begin(), c.end(),comparatorAge);
 
 	// replace
-	for(int i = POP-p.size(), k=0; i< POP; ++i,k++){ 
-		c[i] = p[k];
+	for(int i = POP-children.size(), k=0; i< POP; ++i,k++){ 
+		c[i] = children[k];
 	}
 
 }
 
+////// ignore
 // survivor selection - fitness
-void survivorSelectionFitness(vector<chromosomes> &c, vector<chromosomes> &p){ 
+void survivorSelectionFitness(vector<chromosomes> &c, vector<chromosomes> &children){ 
 	
-	// sort parent array according to fitness
+	// sort current pop/parent array according to fitness
 	sort(c.begin(), c.end(),comparatorFitness);
 
 	// sort children array according to fitness
-	sort(p.begin(), p.end(),comparatorFitness);
+	sort(children.begin(), children.end(),comparatorFitness);
 
 	// replace
-	for(int i = POP-p.size(), k=0; i< POP; ++i,k++){ // remove last k of a generation
-		if(p[k].fitness<c[i].fitness)
+	for(int i = POP-children.size(), k=0; i< POP; ++i,k++){ // remove last k of a generation
+		if(children[k].fitness<c[i].fitness)
 			continue;
-		c[i] = p[k];
+		c[i] = children[k];
 	}	
 
 }
 
+////// ignore
 // terminating condition - generation number or iteration
 bool terminateGenLimit(int &gen){
 	return gen>GENLIMIT;
@@ -878,7 +932,7 @@ pair<int,int> setItem(InputClass ip){
 
 int main(){
 
-	// declare chromosome 
+	// declare chromosome , c==current population
 	vector<chromosomes> c(POP);
 
 	// set item value weight -- later with a db
@@ -916,7 +970,7 @@ int main(){
 		//sort(c.begin(), c.end(),comparator);
 		
 		// select-crossover-mutate wrapper
-		vector<chromosomes> children = scmWrapper(c,gen);
+		vector<chromosomes> children = scmWrapper(c,gen, noOfCompulsory, noOfEquipped);
 
 		// survivor selection
 		survivorSelectionFitness(c,children);
@@ -956,3 +1010,10 @@ int main(){
 	
 	return 0;
 }
+
+
+
+////// todo 
+////// objective function
+////// termination on avergae
+////// roulette (optional)
