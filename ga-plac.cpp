@@ -16,6 +16,7 @@
 #define GEN 0
 #define MUTRATIO 10
 #define ALPHA 0.5
+#define CHROMLEN 24
 using namespace std;
 
 
@@ -25,7 +26,7 @@ using namespace std;
 struct item{
 	int w,v, index;
 };
-vector<item> listPop;
+vector<item> listPop(CHROMLEN);
 
 // chromosome
 struct chromosomes{
